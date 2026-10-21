@@ -1,0 +1,22 @@
+[package]
+name = "peer_escrow"
+version = "0.1.0"
+description = "Trustless peer-to-peer milestone bounty and escrow protocol on Solana"
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "peer_escrow"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.30.1"
+anchor-spl = "0.30.1"
+solana-program = "=1.18.26"
