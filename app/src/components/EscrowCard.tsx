@@ -7,8 +7,8 @@ import {
   Send,
   Unlock,
   RotateCcw,
-  AlertTriangle,
   User,
+  FastForward,
 } from 'lucide-react';
 import { EscrowItem } from '../types';
 
@@ -18,9 +18,11 @@ interface EscrowCardProps {
 }
 
 export const EscrowCard: React.FC<EscrowCardProps> = ({ escrow, onUpdate }) => {
-  const { publicKey } = useUnifiedWallet();
+  const { publicKey, connected, connectDemo } = useUnifiedWallet();
   const [proofInput, setProofInput] = useState('');
+  const [showProofForm, setShowProofForm] = useState(false);
   const [isSubmittingProof, setIsSubmittingProof] = useState(false);
+  const [simulatedTimelockExpired, setSimulatedTimelockExpired] = useState(false);
   const [actionMsg, setActionMsg] = useState('');
 
   const myAddress = publicKey?.toBase58();
@@ -31,17 +33,15 @@ export const EscrowCard: React.FC<EscrowCardProps> = ({ escrow, onUpdate }) => {
 
   const now = Math.floor(Date.now() / 1000);
   const timelockUnlockTs = escrow.submittedAtTs + escrow.disputeWindowSecs;
-  const canClaimTimelock =
-    escrow.status === 'WORK_SUBMITTED' && now >= timelockUnlockTs;
-  const canRefund =
-    escrow.status === 'INITIALIZED' && now >= escrow.deadlineTs && isClient;
+  const isActuallyExpired = escrow.status === 'WORK_SUBMITTED' && now >= timelockUnlockTs;
+  const canClaimTimelock = isActuallyExpired || simulatedTimelockExpired;
 
   const handleApprove = () => {
-    setActionMsg('Releasing funds from PDA...');
+    setActionMsg('Signing transaction: Releasing funds from Solana PDA...');
     setTimeout(() => {
       onUpdate({ ...escrow, status: 'RELEASED' });
-      setActionMsg('Released successfully!');
-    }, 500);
+      setActionMsg('✓ Escrow released directly to contributor!');
+    }, 600);
   };
 
   const handleSubmitDeliverable = (e: React.FormEvent) => {
@@ -57,50 +57,51 @@ export const EscrowCard: React.FC<EscrowCardProps> = ({ escrow, onUpdate }) => {
         deliverableProof: proofInput.trim(),
       });
       setIsSubmittingProof(false);
+      setShowProofForm(false);
       setProofInput('');
-      setActionMsg('Deliverable submitted! Review timelock started.');
-    }, 500);
+      setActionMsg('✓ Deliverable attached! Autonomous review timelock started.');
+    }, 600);
   };
 
   const handleClaimTimelock = () => {
-    setActionMsg('Claiming unreviewed payout via timelock...');
+    setActionMsg('Autonomous PDA instruction: Claiming funds after grace expiry...');
     setTimeout(() => {
       onUpdate({ ...escrow, status: 'RELEASED' });
-      setActionMsg('Auto-claimed payout!');
-    }, 500);
+      setActionMsg('✓ Timelock executed! 100% payout released with 0 intermediaries.');
+    }, 600);
   };
 
   const handleRefund = () => {
-    setActionMsg('Refunding unfulfilled escrow...');
+    setActionMsg('Refunding unfulfilled escrow from PDA back to client...');
     setTimeout(() => {
       onUpdate({ ...escrow, status: 'REFUNDED' });
-      setActionMsg('Refunded to client!');
-    }, 500);
+      setActionMsg('✓ Refunded 100% to client wallet.');
+    }, 600);
   };
 
   const getStatusBadge = () => {
     switch (escrow.status) {
       case 'INITIALIZED':
         return (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-            Awaiting Submission
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30 flex items-center gap-1">
+            <Clock className="size-3" /> Awaiting Submission
           </span>
         );
       case 'WORK_SUBMITTED':
         return (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
-            In Review (Timelock Active)
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-yellow-500/15 text-yellow-400 border border-yellow-500/30 flex items-center gap-1">
+            <Clock className="size-3 animate-spin" /> In Review (Timelock Active)
           </span>
         );
       case 'RELEASED':
         return (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
             <CheckCircle className="size-3" /> Payout Released
           </span>
         );
       case 'REFUNDED':
         return (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-500/15 text-red-400 border border-red-500/30">
             Refunded
           </span>
         );
@@ -163,7 +164,7 @@ export const EscrowCard: React.FC<EscrowCardProps> = ({ escrow, onUpdate }) => {
         {escrow.deliverableProof && (
           <div className="mb-4 bg-emerald-500/5 border border-emerald-500/20 p-3 rounded-xl">
             <span className="text-[11px] font-semibold text-emerald-400 uppercase block mb-0.5">
-              Submitted Proof
+              Submitted Deliverable Proof
             </span>
             <p className="text-xs text-gray-200 font-mono break-all">
               {escrow.deliverableProof}
@@ -173,71 +174,106 @@ export const EscrowCard: React.FC<EscrowCardProps> = ({ escrow, onUpdate }) => {
       </div>
 
       {/* Action Footer */}
-      <div className="pt-2 border-t border-gray-800/60 mt-2">
+      <div className="pt-3 border-t border-gray-800/60 mt-2 space-y-2">
         {actionMsg && (
-          <p className="text-xs font-medium text-[#14F195] mb-2 text-center">
+          <p className="text-xs font-semibold text-[#14F195] py-1 text-center bg-[#14F195]/10 rounded-lg animate-pulse">
             {actionMsg}
           </p>
         )}
 
-        {/* Contributor: Submit Deliverable Form */}
-        {escrow.status === 'INITIALIZED' && isContributor && (
-          <form onSubmit={handleSubmitDeliverable} className="flex gap-2">
-            <input
-              type="text"
-              required
-              placeholder="Paste PR URL or deliverable commit hash..."
-              value={proofInput}
-              onChange={(e) => setProofInput(e.target.value)}
-              className="flex-1 bg-[#0F0F14] border border-gray-700 focus:border-[#14F195] rounded-xl px-3 py-1.5 text-xs text-gray-200 outline-none"
-            />
+        {/* 1. INITIALIZED state -> Primary "Submit Deliverable Proof" button */}
+        {escrow.status === 'INITIALIZED' && (
+          <div>
+            {!showProofForm ? (
+              <button
+                onClick={() => {
+                  if (!connected) {
+                    connectDemo();
+                  }
+                  setShowProofForm(true);
+                }}
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#14F195] to-[#10b981] hover:opacity-95 text-black font-bold text-xs flex items-center justify-center gap-2 transition active:scale-98 shadow-md"
+              >
+                <Send className="size-3.5" />
+                <span>Submit Deliverable Proof</span>
+              </button>
+            ) : (
+              <form onSubmit={handleSubmitDeliverable} className="space-y-2">
+                <input
+                  type="text"
+                  required
+                  placeholder="Paste GitHub PR or commit hash (e.g. #4f9c82b)..."
+                  value={proofInput}
+                  onChange={(e) => setProofInput(e.target.value)}
+                  className="w-full bg-[#0F0F14] border border-[#14F195]/60 focus:border-[#14F195] rounded-xl px-3 py-2 text-xs text-gray-200 outline-none"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={isSubmittingProof}
+                    className="flex-1 py-1.5 rounded-xl bg-[#14F195] hover:bg-[#12d684] text-black font-bold text-xs flex items-center justify-center gap-1 transition"
+                  >
+                    Confirm Proof & Lock Timelock
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowProofForm(false)}
+                    className="px-3 py-1.5 rounded-xl bg-gray-800 text-gray-400 hover:text-white text-xs font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
+
+        {/* 2. WORK_SUBMITTED state -> Client Approve & Autonomous Timelock Options */}
+        {escrow.status === 'WORK_SUBMITTED' && (
+          <div className="space-y-2">
             <button
-              type="submit"
-              disabled={isSubmittingProof}
-              className="px-3.5 py-1.5 rounded-xl bg-[#14F195] hover:bg-[#12d684] text-black font-bold text-xs flex items-center gap-1 transition"
+              onClick={handleApprove}
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#14F195] to-[#9945FF] hover:opacity-95 text-black font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-98 shadow-md"
             >
-              <Send className="size-3" />
-              Submit
+              <CheckCircle className="size-3.5" />
+              <span>Approve & Release {escrow.amountSol} SOL</span>
             </button>
-          </form>
+
+            {/* Timelock Auto-Release Showcase */}
+            {canClaimTimelock ? (
+              <button
+                onClick={handleClaimTimelock}
+                className="w-full py-2.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-lg animate-bounce"
+              >
+                <Unlock className="size-3.5" />
+                <span>Claim Timelock Auto-Release (0 Intermediaries)</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setSimulatedTimelockExpired(true)}
+                className="w-full py-1.5 rounded-lg bg-gray-800/80 hover:bg-gray-800 text-yellow-400/90 hover:text-yellow-300 text-[11px] font-medium flex items-center justify-center gap-1 transition border border-yellow-500/20"
+                title="Simulate what happens if client is unresponsive after 3-day review window"
+              >
+                <FastForward className="size-3" />
+                <span>Simulate 3-Day Grace Window Expiration</span>
+              </button>
+            )}
+          </div>
         )}
 
-        {/* Client: Release Payout */}
-        {escrow.status === 'WORK_SUBMITTED' && isClient && (
-          <button
-            onClick={handleApprove}
-            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#14F195] to-[#9945FF] hover:opacity-95 text-black font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-98 shadow-md"
-          >
-            <CheckCircle className="size-3.5" />
-            Approve & Release {escrow.amountSol} SOL
-          </button>
-        )}
-
-        {/* Contributor: Claim Timelock Auto-Release */}
-        {canClaimTimelock && isContributor && (
-          <button
-            onClick={handleClaimTimelock}
-            className="w-full py-2.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 text-black font-bold text-xs flex items-center justify-center gap-1.5 transition"
-          >
-            <Unlock className="size-3.5" />
-            Claim Timelock Auto-Release
-          </button>
-        )}
-
-        {/* Client: Claim Refund */}
-        {canRefund && (
-          <button
-            onClick={handleRefund}
-            className="w-full py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-red-400 border border-red-500/30 font-bold text-xs flex items-center justify-center gap-1.5 transition"
-          >
-            <RotateCcw className="size-3.5" />
-            Claim Expired Refund
-          </button>
-        )}
-
+        {/* 3. RELEASED state */}
         {escrow.status === 'RELEASED' && (
-          <div className="text-center text-xs text-emerald-400 font-medium py-1">
-            ✓ Milestone settled with 0% platform fee
+          <div className="text-center text-xs text-emerald-400 font-medium py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+            ✓ 100% Payout Settled Directly via Solana PDA (0% Cut)
+          </div>
+        )}
+
+        {/* 4. REFUNDED state */}
+        {escrow.status === 'REFUNDED' && (
+          <div className="text-center text-xs text-red-400 font-medium py-1.5 bg-red-500/10 border border-red-500/20 rounded-xl">
+            ✓ Refund Returned to Client Wallet
           </div>
         )}
       </div>

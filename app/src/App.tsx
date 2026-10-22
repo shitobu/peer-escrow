@@ -16,7 +16,7 @@ import { EscrowItem } from './types';
 import { Shield, ArrowRight, Zap, CheckCircle2, Lock, Percent } from 'lucide-react';
 
 const DashboardContent: React.FC = () => {
-  const { publicKey } = useUnifiedWallet();
+  const { publicKey, connected, connectDemo } = useUnifiedWallet();
   const [escrows, setEscrows] = useState<EscrowItem[]>(() => getLocalEscrows());
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'ALL' | 'CLIENT' | 'CONTRIBUTOR'>('ALL');
@@ -81,11 +81,21 @@ const DashboardContent: React.FC = () => {
 
             <div className="flex flex-wrap items-center gap-3">
               <button
-                onClick={() => setIsCreateOpen(true)}
-                className="px-5 py-3 rounded-xl bg-gradient-to-r from-[#14F195] to-[#9945FF] hover:opacity-95 text-black font-bold text-sm shadow-xl flex items-center gap-2 transition active:scale-95"
+                onClick={() => {
+                  if (!connected) {
+                    connectDemo();
+                  } else {
+                    setIsCreateOpen(true);
+                  }
+                }}
+                className={
+                  connected
+                    ? 'px-5 py-3 rounded-xl bg-gradient-to-r from-[#14F195] to-[#9945FF] hover:opacity-95 text-black font-bold text-sm shadow-xl flex items-center gap-2 transition active:scale-95'
+                    : 'px-5 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 font-bold text-sm shadow-xl flex items-center gap-2 transition active:scale-95'
+                }
               >
-                <Zap className="size-4" />
-                <span>Create New Milestone</span>
+                {connected ? <Zap className="size-4" /> : <Lock className="size-4 text-emerald-400" />}
+                <span>{connected ? 'Create New Milestone' : 'Connect Devnet Wallet'}</span>
                 <ArrowRight className="size-4" />
               </button>
             </div>

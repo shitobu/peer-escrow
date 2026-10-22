@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { Shield, Coins, Zap, CheckCircle2, LogOut } from 'lucide-react';
+import { Shield, Coins, Zap, Lock, LogOut } from 'lucide-react';
 import { requestDevnetAirdrop } from '../services/solana';
 import { useUnifiedWallet } from '../context/WalletContext';
 
@@ -92,11 +92,25 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCreate }) => {
           )}
 
           <button
-            onClick={onOpenCreate}
-            className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl bg-gradient-to-r from-[#9945FF] to-[#7d33d9] hover:from-[#8b38f0] hover:to-[#7029cb] text-white shadow-lg transition transform active:scale-95"
+            onClick={() => {
+              if (!connected) {
+                connectDemo();
+              } else {
+                onOpenCreate();
+              }
+            }}
+            className={
+              connected
+                ? 'flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl bg-gradient-to-r from-[#9945FF] to-[#7d33d9] hover:from-[#8b38f0] hover:to-[#7029cb] text-white shadow-lg transition transform active:scale-95'
+                : 'flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl bg-gray-800/80 text-gray-400 border border-gray-700 hover:border-gray-600 transition'
+            }
           >
-            <Zap className="size-4" />
-            <span>Create Escrow</span>
+            {connected ? (
+              <Zap className="size-4" />
+            ) : (
+              <Lock className="size-3.5 text-gray-400" />
+            )}
+            <span>{connected ? 'Create Escrow' : 'Connect Wallet to Escrow'}</span>
           </button>
 
           {/* Quick Devnet Demo Connect vs Disconnect */}
