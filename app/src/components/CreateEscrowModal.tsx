@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useUnifiedWallet } from '../context/WalletContext';
 import { X, ShieldCheck, AlertCircle } from 'lucide-react';
 import { EscrowItem } from '../types';
 
@@ -14,7 +14,7 @@ export const CreateEscrowModal: React.FC<CreateEscrowModalProps> = ({
   onClose,
   onCreated,
 }) => {
-  const { publicKey } = useWallet();
+  const { publicKey } = useUnifiedWallet();
   const [contributor, setContributor] = useState('');
   const [amountSol, setAmountSol] = useState('1.0');
   const [metadataUri, setMetadataUri] = useState('');

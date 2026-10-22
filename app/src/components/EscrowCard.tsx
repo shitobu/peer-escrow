@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useUnifiedWallet } from '../context/WalletContext';
 import {
   Clock,
   CheckCircle,
@@ -18,7 +18,7 @@ interface EscrowCardProps {
 }
 
 export const EscrowCard: React.FC<EscrowCardProps> = ({ escrow, onUpdate }) => {
-  const { publicKey } = useWallet();
+  const { publicKey } = useUnifiedWallet();
   const [proofInput, setProofInput] = useState('');
   const [isSubmittingProof, setIsSubmittingProof] = useState(false);
   const [actionMsg, setActionMsg] = useState('');

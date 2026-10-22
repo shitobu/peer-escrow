@@ -2,12 +2,12 @@ import React, { useState, useMemo } from 'react';
 import {
   ConnectionProvider,
   WalletProvider,
-  useWallet,
 } from '@solana/wallet-adapter-react';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { clusterApiUrl } from '@solana/web3.js';
+import { UnifiedWalletProvider, useUnifiedWallet } from './context/WalletContext';
 import { Navbar } from './components/Navbar';
 import { EscrowCard } from './components/EscrowCard';
 import { CreateEscrowModal } from './components/CreateEscrowModal';
@@ -16,7 +16,7 @@ import { EscrowItem } from './types';
 import { Shield, ArrowRight, Zap, CheckCircle2, Lock, Percent } from 'lucide-react';
 
 const DashboardContent: React.FC = () => {
-  const { publicKey } = useWallet();
+  const { publicKey } = useUnifiedWallet();
   const [escrows, setEscrows] = useState<EscrowItem[]>(() => getLocalEscrows());
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'ALL' | 'CLIENT' | 'CONTRIBUTOR'>('ALL');
@@ -213,7 +213,9 @@ export const App: React.FC = () => {
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
-          <DashboardContent />
+          <UnifiedWalletProvider>
+            <DashboardContent />
+          </UnifiedWalletProvider>
         </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
